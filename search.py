@@ -2,7 +2,7 @@ from __future__ import annotations
 from re import T
 import sys
 from enum import Enum
-from typing import Generic, NamedTuple, List, Optional, TypeVar
+from typing import Callable, Generic, Deque, NamedTuple, List, Optional, Set, TypeVar
 
 
 T = TypeVar('T')
@@ -34,6 +34,24 @@ class Node(Generic[T]):
 
     def __lt__(self, other: Node) -> bool:
         return (self.cost + self.heuristic) < (other.cost + other.heuristic)
+
+
+class Queue(Generic[T]):
+    def __init__(self) -> None:
+        self._container: Deque[T] = Deque()
+
+    @property
+    def empty(self) -> bool:
+        return not self._container
+
+    def push(self, item: T) -> None:
+        self._container.append(item)
+
+    def pop(self) -> T:
+        return self._container.popleft()
+
+    def __repr__(self) -> str:
+        return repr(self._container)
 
 
 class Maze():
@@ -110,6 +128,46 @@ class Maze():
         for node in path:
             self.maze[node.row][node.column] = Cell.PATH
 
+    def reMakeStart(self):
+        self.maze[self.start.row][self.start.column] = Cell.START
+        self.maze[self.goal.row][self.goal.column] = Cell.GOAL
+
+
+def bfs(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T], List[T]]) -> Optional[Node[T]]:
+    # queue which determines our next moves in the maze
+    frontier: Queue[Node[T]] = Queue()
+    frontier.push(Node(initial, None))
+    # list to hold explored nodes
+    explored: Set[T] = {initial}
+
+    while not frontier.empty:
+        currentNode: Node[T] = frontier.pop()
+        currentState: T = currentNode.state
+
+        if checkComplete(currentState):
+            return currentNode
+
+        else:
+            for node in branches(currentState):
+                if node in explored:
+                    continue
+                else:
+                    explored.add(node)
+                    frontier.push(Node(node, currentNode))
+    return None
+
+
+# once found last node iteratively traverse using parent nodes to get the path taken
+
+
+def getFinalPath(node: Node[T]) -> List[T]:
+    path: List[T] = [node.state]
+    while node.parent is not None:
+        node = node.parent
+        path.append(node.state)
+    path.reverse()
+    return path
+
 
 def main():
     cmd = sys.argv
@@ -119,8 +177,21 @@ def main():
     if (cmd[1] != '–method' or cmd[3] != '-heuristic'):
         sys.stderr.write("ERROR: Invalid command line statement")
         exit(1)
-    m1: Maze = Maze(cmd[5])
-    print(m1)
+
+    # init maze
+    m: Maze = Maze(cmd[5])
+
+    # Breadth first search
+    if (cmd[2] == "bfs"):
+        solution: Optional[Node[Location]] = bfs(
+            m.start, m.checkComplete, m.branching)
+        if solution is not None:
+            path: List[Location] = getFinalPath(solution)
+            m.createPath(path)
+            m.reMakeStart()
+            print(m)
+        else:
+            sys.stderr.write('ERROR: No goal found using current solution')
 
 
 if __name__ == "__main__":

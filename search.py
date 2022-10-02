@@ -1,6 +1,11 @@
+from __future__ import annotations
+from re import T
 import sys
 from enum import Enum
-from typing import NamedTuple, List
+from typing import Generic, NamedTuple, List, Optional, TypeVar
+
+
+T = TypeVar('T')
 
 
 class Cell(str, Enum):
@@ -14,6 +19,21 @@ class Cell(str, Enum):
 class Location(NamedTuple):
     row: int
     column: int
+
+
+# node class for each node in our tree
+class Node(Generic[T]):
+    def __init__(self, state: T, parent: Optional[Node], cost: float = 0.0, heuristic: float = 0.0):
+        # current location aka state
+        self.state: T = state
+        # node which brought us here to determine path later on
+        self.parent: Optional[Node] = parent
+        # cost and heuristic for A* and greedy
+        self.cost: float = cost
+        self.heuristic: float = heuristic
+
+    def __lt__(self, other: Node) -> bool:
+        return (self.cost + self.heuristic) < (other.cost + other.heuristic)
 
 
 class Maze():

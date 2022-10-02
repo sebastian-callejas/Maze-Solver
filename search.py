@@ -1,8 +1,11 @@
 from __future__ import annotations
-from re import T
+from math import sqrt
+from re import L, T
 import sys
 from enum import Enum
-from typing import Callable, Generic, Deque, NamedTuple, List, Optional, Set, TypeVar
+from tabnanny import check
+from typing import Callable, Dict, Generic, Deque, NamedTuple, List, Optional, Set, TypeVar
+from heapq import heappush, heappop
 
 
 T = TypeVar('T')
@@ -36,22 +39,60 @@ class Node(Generic[T]):
         return (self.cost + self.heuristic) < (other.cost + other.heuristic)
 
 
-class Queue(Generic[T]):
+# stack to be used for DFS
+class Stack(Generic[T]):
     def __init__(self) -> None:
-        self._container: Deque[T] = Deque()
+        self._container: List[T] = []
+
+    @property
+    def empty(self) -> bool:
+        return not self._container  # not is true for empty container
+
+    def push(self, item: T) -> None:
+        self._container.append(item)
+
+    def pop(self) -> T:
+        return self._container.pop()  # LIFO
+
+    def __repr__(self) -> str:
+        return repr(self._container)
+
+
+# priority queue for use of A* and Greedy search
+class PriorityQueue(Generic[T]):
+    def __init__(self):
+        self._container: List[T] = []
 
     @property
     def empty(self) -> bool:
         return not self._container
 
     def push(self, item: T) -> None:
-        self._container.append(item)
+        heappush(self._container, item)
 
     def pop(self) -> T:
-        return self._container.popleft()
+        return heappop(self._container)
 
     def __repr__(self) -> str:
         return repr(self._container)
+
+
+# using pythagorean theorem return the euclidean distance
+def euclideanDistance(goal: Location) -> Callable[[Location], float]:
+    def distance(node: Location) -> float:
+        x: int = node.column - goal.column
+        y: int = node.row - goal.row
+        return sqrt((x * x) + (y * y))
+    return distance
+
+
+# return the abs(different) betweent he start and goal
+def manhattanDistance(goal: Location) -> Callable[[Location], float]:
+    def distance(node: Location) -> float:
+        x: int = abs(node.column - goal.column)
+        y: int = abs(node.row - goal.row)
+        return (x + y)
+    return distance
 
 
 class Maze():
@@ -128,38 +169,157 @@ class Maze():
         for node in path:
             self.maze[node.row][node.column] = Cell.PATH
 
+    # add start and goal nodes for better visualization
     def reMakeStart(self):
         self.maze[self.start.row][self.start.column] = Cell.START
         self.maze[self.goal.row][self.goal.column] = Cell.GOAL
 
 
-def bfs(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T], List[T]]) -> Optional[Node[T]]:
+# frontier: Stack - (first-in-last-out) to search through maze and find the goal
+# explored: Set - holds the total number of nodes expanded
+###########################################################################
+# Path is similar to a singly linked list where every
+#   node holds the value to its parent node which is used to generate path.
+def dfs(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T], List[T]]) -> Optional[Node[T]]:
     # queue which determines our next moves in the maze
-    frontier: Queue[Node[T]] = Queue()
+    frontier: Stack[Node[T]] = Stack()
     frontier.push(Node(initial, None))
     # list to hold explored nodes
+    explored: Set[T] = {initial}
+
+    # run until frontier is empty (goal found or maze finished)
+    while not frontier.empty:
+        # intialize current node and grab state -> location
+        currentNode: Node[T] = frontier.pop()
+        currentState: T = currentNode.state
+
+        # check if goal has been found
+        if checkComplete(currentState):
+            return currentNode
+
+        # if currentNode not goalNode
+        else:
+            # check if neighboring squares have been explored for each node in frontier
+            for node in branches(currentState):
+                # if explored, skip node
+                if node in explored:
+                    continue
+                # else add to explored and frontier
+                else:
+                    explored.add(node)
+                    frontier.push(Node(node, currentNode))
+    # return None if goal node is unreachable
+    return None
+
+
+# frontier: Priority Queue - (best out) to search through maze and find the goal
+# explored: Set - holds the total number of nodes expanded
+###########################################################################
+# Path is similar to a singly linked list where every
+#   node holds the value to its parent node which is used to generate path.
+def iddfs(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T], List[T]]) -> Optional[Node[T]]:
+    # priority queue which determines our next moves in the maze
+    frontier: PriorityQueue[Node[T]] = PriorityQueue()
+    frontier.push(Node(initial, None, 0.0, 0.0))
+    # dict of explored nodes with our current cost at said node
+    explored: Dict[T, float] = {initial: 0.0}
+
+    while not frontier.empty:
+        currentNode: Node[T] = frontier.pop()
+        currentState: T = currentNode.state
+
+        if (checkComplete(currentState)):
+            return currentNode
+        else:
+            for node in branches(currentState):
+                tempCost: float = currentNode.cost + 1
+
+                if node not in explored or explored[node] > tempCost:
+                    explored[node] = tempCost
+                    frontier.push(
+                        Node(node, currentNode, tempCost, 0.0))
+    return None
+
+
+# uses 0 as a cost for the node and passes the selected heuristic
+# fn: h(n)
+def greedy(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T], List[T]], heuristic: Callable[[T], float]) -> Optional[Node[T]]:
+    # priority queue which determines our next moves in the maze
+    frontier: PriorityQueue[Node[T]] = PriorityQueue()
+    frontier.push(Node(initial, None, 0.0, heuristic(initial)))
+    # dict of explored nodes with our current cost at said node
     explored: Set[T] = {initial}
 
     while not frontier.empty:
         currentNode: Node[T] = frontier.pop()
         currentState: T = currentNode.state
 
-        if checkComplete(currentState):
+        if (checkComplete(currentState)):
             return currentNode
-
         else:
             for node in branches(currentState):
-                if node in explored:
-                    continue
-                else:
+                if node not in explored:
                     explored.add(node)
-                    frontier.push(Node(node, currentNode))
+                    frontier.push(
+                        Node(node, currentNode, 0, heuristic(node)))
+    return None
+
+
+# frotier: Priority Queue - based on selected heuristic -> highest h(n) out
+# explored: Dictionary - maps between our location and our current cost
+# f(n): c(n) + h(n)
+def astar(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T], List[T]], heuristic: Callable[[T], float]) -> Optional[Node[T]]:
+    # priority queue which determines our next moves in the maze
+    frontier: PriorityQueue[Node[T]] = PriorityQueue()
+    frontier.push(Node(initial, None, 0.0, heuristic(initial)))
+    # dict of explored nodes with our current cost at said node
+    explored: Dict[T, float] = {initial: 0.0}
+
+    while not frontier.empty:
+        currentNode: Node[T] = frontier.pop()
+        currentState: T = currentNode.state
+
+        if (checkComplete(currentState)):
+            return currentNode
+        else:
+            for node in branches(currentState):
+                tempCost: float = currentNode.cost + 1
+
+                if node not in explored or explored[node] > tempCost:
+                    explored[node] = tempCost
+                    frontier.push(
+                        Node(node, currentNode, tempCost, heuristic(node)))
+    return None
+
+
+# frotier: Priority Queue - based on selected heuristic -> highest h(n) out
+# explored: Dictionary - maps between our location and our current cost
+# f(n): c(n) + h(n)
+def astar(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T], List[T]], heuristic: Callable[[T], float]) -> Optional[Node[T]]:
+    # priority queue which determines our next moves in the maze
+    frontier: PriorityQueue[Node[T]] = PriorityQueue()
+    frontier.push(Node(initial, None, 0.0, heuristic(initial)))
+    # dict of explored nodes with our current cost at said node
+    explored: Dict[T, float] = {initial: 0.0}
+
+    while not frontier.empty:
+        currentNode: Node[T] = frontier.pop()
+        currentState: T = currentNode.state
+
+        if (checkComplete(currentState)):
+            return currentNode
+        else:
+            for node in branches(currentState):
+                tempCost: float = currentNode.cost + 1
+
+                if node not in explored or explored[node] > tempCost:
+                    explored[node] = tempCost
+                    frontier.push(
+                        Node(node, currentNode, tempCost, heuristic(node)))
     return None
 
 
 # once found last node iteratively traverse using parent nodes to get the path taken
-
-
 def getFinalPath(node: Node[T]) -> List[T]:
     path: List[T] = [node.state]
     while node.parent is not None:
@@ -181,10 +341,54 @@ def main():
     # init maze
     m: Maze = Maze(cmd[5])
 
-    # Breadth first search
-    if (cmd[2] == "bfs"):
-        solution: Optional[Node[Location]] = bfs(
+    # Depth first search
+    if (cmd[2] == "dfs"):
+        solution: Optional[Node[Location]] = dfs(
             m.start, m.checkComplete, m.branching)
+        if solution is not None:
+            path: List[Location] = getFinalPath(solution)
+            m.createPath(path)
+            m.reMakeStart()
+            print(m)
+        else:
+            sys.stderr.write('ERROR: No goal found using current solution')
+
+    # Greedy searching algorithm
+    elif (cmd[2] == "greedy"):
+        if (cmd[4] == "euclidian"):
+            distance: Callable[[Location], float] = euclideanDistance(m.goal)
+        elif (cmd[4] == "manhattan"):
+            distance: Callable[[Location], float] = manhattanDistance(m.goal)
+        solution: Optional[Node[Location]] = greedy(
+            m.start, m.checkComplete, m.branching, distance)
+        if solution is not None:
+            path: List[Location] = getFinalPath(solution)
+            m.createPath(path)
+            m.reMakeStart()
+            print(m)
+        else:
+            sys.stderr.write('ERROR: No goal found using current solution')
+
+    # IDDFS
+    elif (cmd[2] == "iddfs"):
+        solution: Optional[Node[Location]] = iddfs(
+            m.start, m.checkComplete, m.branching)
+        if solution is not None:
+            path: List[Location] = getFinalPath(solution)
+            m.createPath(path)
+            m.reMakeStart()
+            print(m)
+        else:
+            sys.stderr.write('ERROR: No goal found using current solution')
+
+    # A* searching algorithm
+    elif (cmd[2] == "astar"):
+        if (cmd[4] == "euclidian"):
+            distance: Callable[[Location], float] = euclideanDistance(m.goal)
+        elif (cmd[4] == "manhattan"):
+            distance: Callable[[Location], float] = manhattanDistance(m.goal)
+        solution: Optional[Node[Location]] = astar(
+            m.start, m.checkComplete, m.branching, distance)
         if solution is not None:
             path: List[Location] = getFinalPath(solution)
             m.createPath(path)

@@ -96,7 +96,11 @@ def manhattanDistance(goal: Location) -> Callable[[Location], float]:
 
 class Maze():
     def __init__(self, FILE):
-        self.file = open(FILE, 'r')
+        try:
+            self.file = open(FILE, 'r')
+        except:
+            sys.stderr.write("ERROR: Unable to open file")
+            exit(1)
         self.data = self.file.readlines()
         self.rows = len(self.data)
         self.columns = len(self.data[0]) - 1

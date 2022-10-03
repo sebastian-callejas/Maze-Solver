@@ -315,6 +315,7 @@ def getFinalPath(node: Node[T]) -> List[T]:
 
 def main():
     cmd = sys.argv
+    # check statement for error
     if len(cmd) == 6:
         if (cmd[1] != '–method' or cmd[3] != '-heuristic'):
             sys.stderr.write("ERROR: Invalid command line statements")
@@ -335,14 +336,22 @@ def main():
 
         # Greedy searching algorithm
         if (cmd[2] == "greedy"):
+
+            # get distance value using euclidian formula
             if (cmd[4] == "euclidian"):
                 distance: Callable[[Location],
                                    float] = euclideanDistance(m.goal)
+
+            # get distance value using manhattan formula
             elif (cmd[4] == "manhattan"):
                 distance: Callable[[Location],
                                    float] = manhattanDistance(m.goal)
+
+            # get solution
             solution: Optional[Node[Location]] = greedy(
                 m.start, m.checkComplete, m.branching, distance)
+
+            # check if solution was given and create report
             if solution is not None:
                 path: List[Location] = getFinalPath(solution)
                 m.createPath(path)
@@ -364,7 +373,7 @@ def main():
             # get solution node
             solution: Optional[Node[Location]] = astar(
                 m.start, m.checkComplete, m.branching, distance)
-            # check is solution was reachable
+            # check is solution was reachable and create report
             if solution is not None:
                 path: List[Location] = getFinalPath(solution)
                 # mark path
@@ -405,8 +414,11 @@ def main():
 
         # IDDFS
         elif (cmd[2] == "iddfs"):
+            # get solution
             solution: Optional[Node[Location]] = iddfs(
                 m.start, m.checkComplete, m.branching)
+
+            # check if solution is given and create report
             if solution is not None:
                 path: List[Location] = getFinalPath(solution)
                 m.createPath(path)

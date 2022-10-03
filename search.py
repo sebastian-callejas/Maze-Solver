@@ -1,10 +1,9 @@
 from __future__ import annotations
 from math import sqrt
-from re import L, T
+from re import T
 import sys
 from enum import Enum
-from tabnanny import check
-from typing import Callable, Dict, Generic, Deque, NamedTuple, List, Optional, Set, TypeVar
+from typing import Callable, Dict, Generic, NamedTuple, List, Optional, Set, TypeVar
 from heapq import heappush, heappop
 
 
@@ -195,6 +194,7 @@ def dfs(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T], 
 
         # check if goal has been found
         if checkComplete(currentState):
+            print("Node Expanded: {}".format(len(explored)))
             return currentNode
 
         # if currentNode not goalNode
@@ -208,6 +208,7 @@ def dfs(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T], 
                 else:
                     explored.add(node)
                     frontier.push(Node(node, currentNode))
+
     # return None if goal node is unreachable
     return None
 
@@ -229,6 +230,7 @@ def iddfs(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T]
         currentState: T = currentNode.state
 
         if (checkComplete(currentState)):
+            print("Node Expanded: {}".format(len(explored)))
             return currentNode
         else:
             for node in branches(currentState):
@@ -255,6 +257,7 @@ def greedy(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T
         currentState: T = currentNode.state
 
         if (checkComplete(currentState)):
+            print("Node Expanded: {}".format(len(explored)))
             return currentNode
         else:
             for node in branches(currentState):
@@ -280,6 +283,7 @@ def astar(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T]
         currentState: T = currentNode.state
 
         if (checkComplete(currentState)):
+            print("Node Expanded: {}".format(len(explored)))
             return currentNode
         else:
             for node in branches(currentState):
@@ -295,10 +299,13 @@ def astar(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T]
 # once found last node iteratively traverse using parent nodes to get the path taken
 def getFinalPath(node: Node[T]) -> List[T]:
     path: List[T] = [node.state]
+    cost = 0
     while node.parent is not None:
+        cost += 1
         node = node.parent
         path.append(node.state)
     path.reverse()
+    print("Total Cost: {}".format(cost))
     return path
 
 
@@ -336,16 +343,22 @@ def main():
         # A* searching algorithm
         elif (cmd[2] == "astar"):
             if (cmd[4] == "euclidian"):
+                # get distance value using euclidian formula
                 distance: Callable[[Location],
                                    float] = euclideanDistance(m.goal)
             elif (cmd[4] == "manhattan"):
+                # get distance value using manhattan formula
                 distance: Callable[[Location],
                                    float] = manhattanDistance(m.goal)
+            # get solution node
             solution: Optional[Node[Location]] = astar(
                 m.start, m.checkComplete, m.branching, distance)
+            # check is solution was reachable
             if solution is not None:
                 path: List[Location] = getFinalPath(solution)
+                # mark path
                 m.createPath(path)
+                # bring back the S and G nodes
                 m.reMakeStart()
                 print(m)
             else:
@@ -366,7 +379,9 @@ def main():
                 m.start, m.checkComplete, m.branching)
             if solution is not None:
                 path: List[Location] = getFinalPath(solution)
+                # mark path
                 m.createPath(path)
+                # bring back the S and G nodes
                 m.reMakeStart()
                 print(m)
             else:

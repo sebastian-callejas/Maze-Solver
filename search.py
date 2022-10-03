@@ -292,33 +292,6 @@ def astar(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T]
     return None
 
 
-# frotier: Priority Queue - based on selected heuristic -> highest h(n) out
-# explored: Dictionary - maps between our location and our current cost
-# f(n): c(n) + h(n)
-def astar(initial: T, checkComplete: Callable[[T], bool], branches: Callable[[T], List[T]], heuristic: Callable[[T], float]) -> Optional[Node[T]]:
-    # priority queue which determines our next moves in the maze
-    frontier: PriorityQueue[Node[T]] = PriorityQueue()
-    frontier.push(Node(initial, None, 0.0, heuristic(initial)))
-    # dict of explored nodes with our current cost at said node
-    explored: Dict[T, float] = {initial: 0.0}
-
-    while not frontier.empty:
-        currentNode: Node[T] = frontier.pop()
-        currentState: T = currentNode.state
-
-        if (checkComplete(currentState)):
-            return currentNode
-        else:
-            for node in branches(currentState):
-                tempCost: float = currentNode.cost + 1
-
-                if node not in explored or explored[node] > tempCost:
-                    explored[node] = tempCost
-                    frontier.push(
-                        Node(node, currentNode, tempCost, heuristic(node)))
-    return None
-
-
 # once found last node iteratively traverse using parent nodes to get the path taken
 def getFinalPath(node: Node[T]) -> List[T]:
     path: List[T] = [node.state]
@@ -331,71 +304,84 @@ def getFinalPath(node: Node[T]) -> List[T]:
 
 def main():
     cmd = sys.argv
-    if len(cmd) != 6:
-        sys.stderr.write("ERROR: Invalid number of arguments")
-        exit(1)
-    if (cmd[1] != '–method' or cmd[3] != '-heuristic'):
-        sys.stderr.write("ERROR: Invalid command line statement")
-        exit(1)
+    if len(cmd) == 6:
+        if (cmd[1] != '–method' or cmd[3] != '-heuristic'):
+            sys.stderr.write("ERROR: Invalid command line statements")
+            exit(1)
 
-    # init maze
-    m: Maze = Maze(cmd[5])
+        # init maze
+        m: Maze = Maze(cmd[5])
 
-    # Depth first search
-    if (cmd[2] == "dfs"):
-        solution: Optional[Node[Location]] = dfs(
-            m.start, m.checkComplete, m.branching)
-        if solution is not None:
-            path: List[Location] = getFinalPath(solution)
-            m.createPath(path)
-            m.reMakeStart()
-            print(m)
-        else:
-            sys.stderr.write('ERROR: No goal found using current solution')
+        # Greedy searching algorithm
+        if (cmd[2] == "greedy"):
+            if (cmd[4] == "euclidian"):
+                distance: Callable[[Location],
+                                   float] = euclideanDistance(m.goal)
+            elif (cmd[4] == "manhattan"):
+                distance: Callable[[Location],
+                                   float] = manhattanDistance(m.goal)
+            solution: Optional[Node[Location]] = greedy(
+                m.start, m.checkComplete, m.branching, distance)
+            if solution is not None:
+                path: List[Location] = getFinalPath(solution)
+                m.createPath(path)
+                m.reMakeStart()
+                print(m)
+            else:
+                sys.stderr.write('ERROR: No goal found using current solution')
 
-    # Greedy searching algorithm
-    elif (cmd[2] == "greedy"):
-        if (cmd[4] == "euclidian"):
-            distance: Callable[[Location], float] = euclideanDistance(m.goal)
-        elif (cmd[4] == "manhattan"):
-            distance: Callable[[Location], float] = manhattanDistance(m.goal)
-        solution: Optional[Node[Location]] = greedy(
-            m.start, m.checkComplete, m.branching, distance)
-        if solution is not None:
-            path: List[Location] = getFinalPath(solution)
-            m.createPath(path)
-            m.reMakeStart()
-            print(m)
-        else:
-            sys.stderr.write('ERROR: No goal found using current solution')
+        # A* searching algorithm
+        elif (cmd[2] == "astar"):
+            if (cmd[4] == "euclidian"):
+                distance: Callable[[Location],
+                                   float] = euclideanDistance(m.goal)
+            elif (cmd[4] == "manhattan"):
+                distance: Callable[[Location],
+                                   float] = manhattanDistance(m.goal)
+            solution: Optional[Node[Location]] = astar(
+                m.start, m.checkComplete, m.branching, distance)
+            if solution is not None:
+                path: List[Location] = getFinalPath(solution)
+                m.createPath(path)
+                m.reMakeStart()
+                print(m)
+            else:
+                sys.stderr.write('ERROR: No goal found using current solution')
 
-    # IDDFS
-    elif (cmd[2] == "iddfs"):
-        solution: Optional[Node[Location]] = iddfs(
-            m.start, m.checkComplete, m.branching)
-        if solution is not None:
-            path: List[Location] = getFinalPath(solution)
-            m.createPath(path)
-            m.reMakeStart()
-            print(m)
-        else:
-            sys.stderr.write('ERROR: No goal found using current solution')
+    # if dfs or greedy ignore -heuristic flag
+    elif (len(cmd) == 4):
+        if (cmd[1] != '–method'):
+            sys.stderr.write("ERROR: Invalid command line statement")
+            exit(1)
 
-    # A* searching algorithm
-    elif (cmd[2] == "astar"):
-        if (cmd[4] == "euclidian"):
-            distance: Callable[[Location], float] = euclideanDistance(m.goal)
-        elif (cmd[4] == "manhattan"):
-            distance: Callable[[Location], float] = manhattanDistance(m.goal)
-        solution: Optional[Node[Location]] = astar(
-            m.start, m.checkComplete, m.branching, distance)
-        if solution is not None:
-            path: List[Location] = getFinalPath(solution)
-            m.createPath(path)
-            m.reMakeStart()
-            print(m)
-        else:
-            sys.stderr.write('ERROR: No goal found using current solution')
+        # init maze
+        m: Maze = Maze(cmd[3])
+
+        # Depth first search
+        if (cmd[2] == "dfs"):
+            solution: Optional[Node[Location]] = dfs(
+                m.start, m.checkComplete, m.branching)
+            if solution is not None:
+                path: List[Location] = getFinalPath(solution)
+                m.createPath(path)
+                m.reMakeStart()
+                print(m)
+            else:
+                sys.stderr.write('ERROR: No goal found using current solution')
+
+        # IDDFS
+        elif (cmd[2] == "iddfs"):
+            solution: Optional[Node[Location]] = iddfs(
+                m.start, m.checkComplete, m.branching)
+            if solution is not None:
+                path: List[Location] = getFinalPath(solution)
+                m.createPath(path)
+                m.reMakeStart()
+                print(m)
+            else:
+                sys.stderr.write('ERROR: No goal found using current solution')
+    else:
+        sys.stderr.write('ERROR: Invalid number of command line statements')
 
 
 if __name__ == "__main__":

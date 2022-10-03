@@ -308,6 +308,9 @@ def main():
         if (cmd[1] != '–method' or cmd[3] != '-heuristic'):
             sys.stderr.write("ERROR: Invalid command line statements")
             exit(1)
+        if (cmd[2] == 'dfs' or cmd[2] == 'iddfs'):
+            sys.stderr.write(
+                "ERROR: Too many arguments for search strategy\nFIX: Remove -heuristic flag")
 
         # init maze
         m: Maze = Maze(cmd[5])

@@ -317,7 +317,14 @@ def main():
             exit(1)
         if (cmd[2] == 'dfs' or cmd[2] == 'iddfs'):
             sys.stderr.write(
-                "ERROR: Too many arguments for search strategy\nFIX: Remove -heuristic flag")
+                "ERROR: Too many argments for search strategy\nFIX: Remove -heuristic flag")
+        if (cmd[2] != 'astar' and cmd[2] != 'greedy'):
+            sys.stderr.write(
+                "ERROR: Invalid search strategy\nCheck spelling")
+            exit(1)
+        if (cmd[4] != 'manhattan' and cmd[4] != 'euclidian'):
+            sys.stderr.write("ERROR: Invalid heuristic\nCheck spelling")
+            exit(1)
 
         # init maze
         m: Maze = Maze(cmd[5])
@@ -366,8 +373,13 @@ def main():
 
     # if dfs or greedy ignore -heuristic flag
     elif (len(cmd) == 4):
-        if (cmd[1] != '–method'):
-            sys.stderr.write("ERROR: Invalid command line statement")
+        if (cmd[1] != '-method'):
+            sys.stderr.write(
+                "ERROR: Invalid command line statement\nCheck use of '-' symbol")
+            exit(1)
+        if (cmd[2] != 'dfs' and cmd[2] != 'iddfs'):
+            sys.stderr.write(
+                "ERROR: Invalid search strategy\nCheck spelling or include -heuristic")
             exit(1)
 
         # init maze
